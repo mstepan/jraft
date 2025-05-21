@@ -5,8 +5,14 @@ import com.github.mstepan.jraft.grpc.Hello.HelloReply;
 import com.github.mstepan.jraft.grpc.Hello.HelloRequest;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import java.lang.invoke.MethodHandles;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ClientMain {
+
+    private static final Logger LOGGER =
+            LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     public static void main(String[] args) {
         ManagedChannel channel =
@@ -20,7 +26,7 @@ public class ClientMain {
         HelloRequest request = HelloRequest.newBuilder().setName("Maksym").build();
         HelloReply response = stub.sayHello(request);
 
-        System.out.println("Received from server: " + response.getMessage());
+        LOGGER.info("Received from server: {}", response.getMessage());
 
         channel.shutdown();
     }

@@ -20,7 +20,9 @@
         <grpc.version>1.72.0</grpc.version>
         <junit.version>5.12.2</junit.version>
         <javax.annotation.api.version>1.3.2</javax.annotation.api.version>
+        <logback.version>1.5.18</logback.version>
         <protobuf.version>4.31.0</protobuf.version>
+        <sl4j.version>2.0.17</sl4j.version>
 
         <!-- ErrorProne (https://errorprone.info/) -->
         <error.prone.version>2.36.0</error.prone.version>
@@ -319,6 +321,18 @@
             <groupId>com.google.code.findbugs</groupId>
             <artifactId>annotations</artifactId>
             <version>${finbugs.annotation.version}</version>
+        </dependency>
+
+        <!-- sl4j + logback -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${sl4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>${logback.version}</version>
         </dependency>
 
         <!-- Test dependencies -->

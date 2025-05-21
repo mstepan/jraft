@@ -9,8 +9,14 @@ import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ServerMain {
+
+    private static final Logger LOGGER =
+            LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     static final String HOST = "localhost";
     static final int PORT = 9090;
@@ -21,12 +27,12 @@ public class ServerMain {
 
         Server server = ServerBuilder.forPort(PORT).addService(new GreeterServiceImpl()).build();
         server.start();
-        System.out.printf("gRPC server started at: %s:%d%n", HOST, PORT);
+        LOGGER.info("gRPC server started at: {}:{}", HOST, PORT);
 
         Thread votingThread = Thread.ofVirtual().start(new VoteTask());
 
         server.awaitTermination();
-        System.out.println("gRPC server gracefully stopped");
+        LOGGER.info("gRPC server gracefully stopped");
 
         votingThread.interrupt();
     }
