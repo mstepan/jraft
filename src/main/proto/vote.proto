@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+// If you have decided to change package name here, don't forget to modify 'spotbugs-excludes.xml' file too
+option java_package = "com.github.mstepan.jraft.grpc";
+option java_outer_classname = "Vote";
+
+service VoteService {
+  rpc Vote (RequestVote) returns (VoteResponse);
+}
+
+message RequestVote {
+
+  // The candidate’s term.
+  uint64 candidate_term = 1;
+
+  // The candidate’s ID.
+  string candidate_id = 2;
+
+  // The index and term of the candidate’s last log entry.
+  uint64 log_entry_idx = 3;
+}
+
+enum VoteResult {
+  GRANTED = 0;
+  REJECTED = 1;
+}
+
+message VoteResponse {
+  VoteResult result = 1;
+}

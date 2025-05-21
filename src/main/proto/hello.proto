@@ -4,7 +4,7 @@ syntax = "proto3";
 option java_package = "com.github.mstepan.jraft.grpc";
 option java_outer_classname = "Hello";
 
-service Greeter {
+service GreetingService {
   rpc SayHello (HelloRequest) returns (HelloReply);
 }
 
