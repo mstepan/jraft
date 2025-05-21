@@ -49,30 +49,6 @@
         <plugins>
 
             <!--
-            Maven properties plugin (https://www.mojohaus.org/properties-maven-plugin/usage.html)
-            Below plugin will be used to read 'env_maven.properties' file and populate maven properties, such
-            as 'nvd_api_key' that should not be commited.
-            -->
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>properties-maven-plugin</artifactId>
-                <version>1.2.1</version>
-                <executions>
-                    <execution>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>read-project-properties</goal>
-                        </goals>
-                        <configuration>
-                            <files>
-                                <file>env_maven.properties</file>
-                            </files>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-
-            <!--
            Spotless is a general-purpose formatting plugin. It is completely Ã la carte,
            but also includes powerful "batteries-included" if you opt-in
            https://github.com/diffplug/spotless/tree/master/plugin-maven
@@ -221,28 +197,6 @@
                     </execution>
                 </executions>
             </plugin>
-
-            <!--
-            OWASP dependency checker(https://github.com/jeremylong/DependencyCheck)
-            Check for known vulnerabilities inside your dependencies.
-            -->
-            <plugin>
-                <groupId>org.owasp</groupId>
-                <artifactId>dependency-check-maven</artifactId>
-                <version>11.1.1</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <!--suppress UnresolvedMavenProperty -->
-                    <nvdApiKey>${nvd_api_key}</nvdApiKey>
-                </configuration>
-            </plugin>
-
         </plugins>
     </build>
 

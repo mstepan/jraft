@@ -20,7 +20,7 @@ dependency-reduced-pom.xml
 hs_err_pid*
 
 # Ignore env local properties
-#env_maven.properties
+env_maven.properties
 
 # MacOS caches files
 .DS_Store

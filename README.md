@@ -3,9 +3,11 @@
 * Written in `Java 23`. Version specified inside `.sdkmanrc` file using [sdkman](https://sdkman.io/usage)
 * Maven `v3.9.9` with the [wrapper](https://maven.apache.org/wrapper/)
 * Compiled to native executable using [GraalVM](https://www.graalvm.org/)
-* Uses [virtual threads](https://docs.oracle.com/en/java/javase/23/core/virtual-threads.html) and [structured concurrency](https://docs.oracle.com/en/java/javase/23/core/structured-concurrency.html)
+* Uses [virtual threads](https://docs.oracle.com/en/java/javase/23/core/virtual-threads.html)
+  and [structured concurrency](https://docs.oracle.com/en/java/javase/23/core/structured-concurrency.html)
 * Uses [Error Prone](https://errorprone.info/) as an additional compiler to `javac`.
-* Uses [Spotless](https://github.com/diffplug/spotless/) for automatic code formatting in [Android Open Source Project](https://source.android.com/docs/setup/contribute/code-style) style.
+* Uses [Spotless](https://github.com/diffplug/spotless/) for automatic code formatting
+  in [Android Open Source Project](https://source.android.com/docs/setup/contribute/code-style) style.
 * Uses [OWASP dependency-check](https://owasp.org/www-project-dependency-check/) to detect CVEs inside dependencies.
 
 ## Build & run
@@ -45,15 +47,4 @@ It's necessary for the native image compilation.
 ./target/jraft.exe
 
 ./target/jraft
-```
-
-## Quality checks
-
-### OWASP check dependencies for vulnerabilities
-
-* Run OWASP dependency checker. The OWASP checker attached to `check` maven phase that can be triggered using below
-  command:
-
-```bash
-./mvnw verify
 ```
