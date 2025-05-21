@@ -12,14 +12,14 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!-- Java version -->
-        <maven.compiler.source>23</maven.compiler.source>
-        <maven.compiler.target>23</maven.compiler.target>
+        <java.version>23</java.version>
 
         <!-- 3rd party dependencies -->
         <assertj.version>3.27.3</assertj.version>
         <grpc.version>1.72.0</grpc.version>
         <junit.version>5.12.2</junit.version>
-        <protobuf.version>3.25.0</protobuf.version>
+        <javax.annotation.api.version>1.3.2</javax.annotation.api.version>
+        <protobuf.version>3.19.6</protobuf.version>
 
         <!-- ErrorProne (https://errorprone.info/) -->
         <error.prone.version>2.36.0</error.prone.version>
@@ -46,6 +46,15 @@
     </properties>
 
     <build>
+
+        <extensions>
+            <extension>
+                <groupId>kr.motd.maven</groupId>
+                <artifactId>os-maven-plugin</artifactId>
+                <version>1.6.2</version>
+            </extension>
+        </extensions>
+
         <plugins>
 
             <!--
@@ -88,6 +97,7 @@
                 <artifactId>spotbugs-maven-plugin</artifactId>
                 <version>${maven.spotbugs.plugin.version}</version>
                 <configuration>
+                    <excludeFilterFile>spotbugs-excludes.xml</excludeFilterFile>
                     <plugins>
                         <plugin>
                             <groupId>com.h3xstream.findsecbugs</groupId>
@@ -114,14 +124,45 @@
                 </executions>
             </plugin>
 
+            <!-- Protobuf and gRPC compiler -->
+            <plugin>
+                <groupId>org.xolstice.maven.plugins</groupId>
+                <artifactId>protobuf-maven-plugin</artifactId>
+                <version>0.6.1</version>
+                <configuration>
+                    <!-- artifact to download binary protobuf compiler -->
+                    <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}
+                    </protocArtifact>
+                    <!-- make maven using GRPC plugin for compile-custom and
+                    test-compile-custom goals -->
+                    <pluginId>grpc-java</pluginId>
+                    <!-- artifact to download GRPC protobuf compiler plugin -->
+                    <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}
+                    </pluginArtifact>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <!-- compile .proto files located under main directory -->
+                            <goal>compile</goal>
+                            <goal>compile-custom</goal>
+                            <!-- compile .proto files located under test directory -->
+                            <goal>test-compile</goal>
+                            <goal>test-compile-custom</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Compiler -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${maven.compiler.plugin.version}</version>
                 <configuration>
                     <fork>true</fork>
-                    <source>${maven.compiler.source}</source>
-                    <target>${maven.compiler.target}</target>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
                     <encoding>UTF-8</encoding>
                     <compilerArgs>
                         <arg>--enable-preview</arg>
@@ -155,7 +196,6 @@
                         together with other annotation processors' below. -->
                     </annotationProcessorPaths>
                 </configuration>
-
             </plugin>
 
             <!--
@@ -177,7 +217,7 @@
                                 <!-- Adds the Main-Class entry to the manifest -->
                                 <transformer
                                         implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>com.github.mstepan.jraft.AppMain</mainClass>
+                                    <mainClass>com.github.mstepan.jraft.ServerMain</mainClass>
                                 </transformer>
                             </transformers>
                             <filters>
@@ -259,7 +299,12 @@
     </dependencyManagement>
 
     <dependencies>
-        <!-- gRPC -->
+        <!-- Protobuf and gRPC -->
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+            <version>${protobuf.version}</version>
+        </dependency>
         <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-netty-shaded</artifactId>
@@ -272,12 +317,10 @@
             <groupId>io.grpc</groupId>
             <artifactId>grpc-stub</artifactId>
         </dependency>
-
-        <!-- Protobuf Compiler -->
         <dependency>
-            <groupId>com.google.protobuf</groupId>
-            <artifactId>protobuf-java</artifactId>
-            <version>${protobuf.version}</version>
+            <groupId>javax.annotation</groupId>
+            <artifactId>javax.annotation-api</artifactId>
+            <version>${javax.annotation.api.version}</version>
         </dependency>
 
         <!-- Test dependencies -->

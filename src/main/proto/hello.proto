@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+// If you have decided to change package name here, don't forget to modify 'spotbugs-excludes.xml' file too
+option java_package = "com.github.mstepan.jraft.grpc";
+option java_outer_classname = "Hello";
+
+service Greeter {
+  rpc SayHello (HelloRequest) returns (HelloReply);
+}
+
+message HelloRequest {
+  string name = 1;
+}
+
+message HelloReply {
+  string message = 1;
+}

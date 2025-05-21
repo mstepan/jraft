@@ -1,0 +1,6 @@
+<FindBugsFilter>
+    <!-- Exclude all gRPC and Protobuf generated classes -->
+    <Match>
+        <Package name="com.github.mstepan.jraft.grpc"/>
+    </Match>
+</FindBugsFilter>
