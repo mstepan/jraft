@@ -3,7 +3,6 @@ package com.github.mstepan.jraft;
 import com.github.mstepan.jraft.grpc.GreeterGrpc;
 import com.github.mstepan.jraft.grpc.Hello.HelloReply;
 import com.github.mstepan.jraft.grpc.Hello.HelloRequest;
-
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 

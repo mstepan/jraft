@@ -8,7 +8,6 @@
 * Uses [Error Prone](https://errorprone.info/) as an additional compiler to `javac`.
 * Uses [Spotless](https://github.com/diffplug/spotless/) for automatic code formatting
   in [Android Open Source Project](https://source.android.com/docs/setup/contribute/code-style) style.
-* Uses [OWASP dependency-check](https://owasp.org/www-project-dependency-check/) to detect CVEs inside dependencies.
 
 ## Build & run
 
