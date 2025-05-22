@@ -22,6 +22,7 @@
         <javax.annotation.api.version>1.3.2</javax.annotation.api.version>
         <logback.version>1.5.18</logback.version>
         <protobuf.version>4.31.0</protobuf.version>
+        <picocli.version>4.7.6</picocli.version>
         <sl4j.version>2.0.17</sl4j.version>
 
         <!-- ErrorProne (https://errorprone.info/) -->
@@ -314,6 +315,13 @@
             <groupId>javax.annotation</groupId>
             <artifactId>javax.annotation-api</artifactId>
             <version>${javax.annotation.api.version}</version>
+        </dependency>
+
+        <!-- CLI tool -->
+        <dependency>
+            <groupId>info.picocli</groupId>
+            <artifactId>picocli</artifactId>
+            <version>${picocli.version}</version>
         </dependency>
 
         <!-- Finbugs annotations -->

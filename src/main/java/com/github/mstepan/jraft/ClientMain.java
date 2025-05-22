@@ -11,12 +11,14 @@ import org.slf4j.LoggerFactory;
 
 public class ClientMain {
 
+    private static final int SERVER_DEFAULT_PORT = 9091;
+
     private static final Logger LOGGER =
             LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     public static void main(String[] args) {
         ManagedChannel channel =
-                ManagedChannelBuilder.forAddress("localhost", ServerMain.PORT)
+                ManagedChannelBuilder.forAddress("localhost", SERVER_DEFAULT_PORT)
                         .usePlaintext() // Required for plaintext (non-SSL) connections
                         .build();
 
