@@ -41,4 +41,8 @@ public enum ClusterTopology {
     public String curNodeId() {
         return curNodeId;
     }
+
+    public int clusterSize() {
+        return seedNodes.size() + 1;
+    }
 }

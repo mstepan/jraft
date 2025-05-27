@@ -4,11 +4,12 @@ syntax = "proto3";
 option java_package = "com.github.mstepan.jraft.grpc";
 option java_outer_classname = "Raft";
 
-service VoteService {
-  rpc Vote (RequestVote) returns (VoteResponse);
+service RaftService {
+  rpc Vote (VoteRequest) returns (VoteResponse);
+  rpc AppendEntry (AppendEntryRequest) returns (AppendEntryResponse);
 }
 
-message RequestVote {
+message VoteRequest {
 
   // The candidate’s term.
   uint64 candidate_term = 1;
@@ -20,11 +21,18 @@ message RequestVote {
   uint64 log_entry_idx = 3;
 }
 
+message VoteResponse {
+  VoteResult result = 1;
+}
+
 enum VoteResult {
   GRANTED = 0;
   REJECTED = 1;
 }
 
-message VoteResponse {
-  VoteResult result = 1;
+message AppendEntryRequest {
+
 }
+
+message AppendEntryResponse {}
+

@@ -1,7 +1,7 @@
 package com.github.mstepan.jraft;
 
 import com.github.mstepan.jraft.grpc.Raft;
-import com.github.mstepan.jraft.grpc.VoteServiceGrpc;
+import com.github.mstepan.jraft.grpc.RaftServiceGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.lang.invoke.MethodHandles;
@@ -23,10 +23,10 @@ public class ClientMain {
                         .usePlaintext() // Required for plaintext (non-SSL) connections
                         .build();
 
-        VoteServiceGrpc.VoteServiceBlockingStub stub = VoteServiceGrpc.newBlockingStub(channel);
+        RaftServiceGrpc.RaftServiceBlockingStub stub = RaftServiceGrpc.newBlockingStub(channel);
 
-        Raft.RequestVote request =
-                Raft.RequestVote.newBuilder()
+        Raft.VoteRequest request =
+                Raft.VoteRequest.newBuilder()
                         .setCandidateId(UUID.randomUUID().toString())
                         .setCandidateTerm(123L)
                         .setLogEntryIdx(456L)

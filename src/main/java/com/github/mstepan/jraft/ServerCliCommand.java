@@ -43,7 +43,6 @@ class ServerCliCommand implements Callable<Integer> {
     @Override
     public Integer call() {
         try {
-
             ClusterTopology.INST.addSeedNodes(seeds);
 
             NodeGlobalState.INST.setRole(NodeRole.FOLLOWER);
@@ -52,12 +51,14 @@ class ServerCliCommand implements Callable<Integer> {
             server.start();
             LOGGER.info("gRPC server started at: {}:{}", host, port);
 
-            Thread votingThread = Thread.ofVirtual().start(new VoteTask());
+            Thread voteTread = Thread.ofVirtual().name("Vote").start(new VoteTask());
+            Thread pingThread = Thread.ofVirtual().name("Heartbeat").start(new HeartbeatTask());
 
             server.awaitTermination();
             LOGGER.info("gRPC server gracefully stopped");
 
-            votingThread.interrupt();
+            voteTread.interrupt();
+            pingThread.interrupt();
 
             return 0;
         } catch (Exception ex) {

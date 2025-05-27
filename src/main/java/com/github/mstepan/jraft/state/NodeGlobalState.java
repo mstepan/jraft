@@ -1,14 +1,16 @@
 package com.github.mstepan.jraft.state;
 
 import com.github.mstepan.jraft.grpc.Raft.*;
-import com.github.mstepan.jraft.grpc.VoteServiceGrpc;
+import com.github.mstepan.jraft.grpc.RaftServiceGrpc;
 import com.github.mstepan.jraft.topology.ClusterTopology;
 import com.github.mstepan.jraft.topology.HostPort;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.lang.invoke.MethodHandles;
-import java.util.Optional;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,8 +24,10 @@ public enum NodeGlobalState {
 
     private NodeRole role;
 
-    private Optional<String> votedFor;
+    // candidateId that received vote in current term (or null if none)
+    private volatile String votedFor;
 
+    // latest term server has seen (initialized to 0 on first boot, increases monotonically)
     private final AtomicLong currentTerm = new AtomicLong(0L);
 
     private final AtomicLong logEntryIdx = new AtomicLong(0L);
@@ -34,7 +38,15 @@ public enum NodeGlobalState {
         LOGGER.debug("Role changed: {} -> {}", prevRole, newRole);
     }
 
+    /*
+    1. Converts to a Candidate
+    2. Increments its current term
+    3. Votes for itself
+    4. Resets its election timeout
+    5. Sends RequestVote RPCs to all other nodes
+     */
     public synchronized void startElection() {
+
         // Node becomes a Candidate
         setRole(NodeRole.CANDIDATE);
 
@@ -42,30 +54,98 @@ public enum NodeGlobalState {
         long newCurTerm = currentTerm.incrementAndGet();
 
         // Votes for itself.
-        votedFor = Optional.of(ClusterTopology.INST.curNodeId());
+        votedFor = ClusterTopology.INST.curNodeId();
 
-        for (HostPort singleNode : ClusterTopology.INST.seedNodes()) {
+        List<StructuredTaskScope.Subtask<VoteResponse>> allRequests = new ArrayList<>();
 
-            // TODO: below code failed
-            ManagedChannel channel =
-                    ManagedChannelBuilder.forAddress(singleNode.host(), singleNode.port())
-                            .usePlaintext() // Required for plaintext (non-SSL) connections
-                            .build();
+        try (var scope = new StructuredTaskScope<VoteResponse>()) {
+            for (HostPort singleNode : ClusterTopology.INST.seedNodes()) {
+                var subtask =
+                        scope.fork(
+                                () -> {
+                                    ManagedChannel channel =
+                                            ManagedChannelBuilder.forAddress(
+                                                            singleNode.host(), singleNode.port())
+                                                    .usePlaintext() // Required for plaintext
+                                                    // (non-SSL)
+                                                    // connections
+                                                    .build();
 
-            VoteServiceGrpc.VoteServiceBlockingStub stub = VoteServiceGrpc.newBlockingStub(channel);
+                                    RaftServiceGrpc.RaftServiceBlockingStub stub =
+                                            RaftServiceGrpc.newBlockingStub(channel);
 
-            RequestVote request =
-                    RequestVote.newBuilder()
-                            .setCandidateId(ClusterTopology.INST.curNodeId())
-                            .setCandidateTerm(newCurTerm)
-                            .setLogEntryIdx(logEntryIdx.get())
-                            .build();
+                                    VoteRequest request =
+                                            VoteRequest.newBuilder()
+                                                    .setCandidateId(
+                                                            ClusterTopology.INST.curNodeId())
+                                                    .setCandidateTerm(newCurTerm)
+                                                    .setLogEntryIdx(logEntryIdx.get())
+                                                    .build();
 
-            VoteResponse response = stub.vote(request);
+                                    VoteResponse response = stub.vote(request);
 
-            LOGGER.info("Vote response: {}", response.getResult());
+                                    LOGGER.info("Vote response: {}", response.getResult());
 
-            channel.shutdown();
+                                    channel.shutdown();
+
+                                    return response;
+                                });
+
+                allRequests.add(subtask);
+            }
+
+            scope.join();
+
+            // initialised to 1, assuming we have voted for ourselves
+            int grantedVotesCnt = 1;
+
+            for (StructuredTaskScope.Subtask<VoteResponse> singleSubtask : allRequests) {
+
+                if (singleSubtask.state() == StructuredTaskScope.Subtask.State.SUCCESS) {
+                    VoteResponse singleVoteResponse = singleSubtask.get();
+                    if (singleVoteResponse.getResult() == VoteResult.GRANTED) {
+                        ++grantedVotesCnt;
+                    }
+
+                    if (grantedVotesCnt >= ClusterTopology.INST.clusterSize()) {
+                        LOGGER.info("Vote majority reached");
+                        // If the Candidate receives votes from a majority of nodes, it becomes the
+                        // Leader.
+                        markAsLeader();
+                        break;
+                    }
+                }
+            }
+
+        } catch (InterruptedException interEx) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    public boolean isLeader() {
+        return role == NodeRole.LEADER;
+    }
+
+    public long currentTerm() {
+        return currentTerm.get();
+    }
+
+    public String votedFor() {
+        return votedFor;
+    }
+
+    public long logEntryIndex() {
+        return logEntryIdx.get();
+    }
+
+    public synchronized void markAsLeader() {
+        role = NodeRole.LEADER;
+        notifyAll();
+    }
+
+    public synchronized void waitTillNotLeader() throws InterruptedException {
+        while (role != NodeRole.LEADER) {
+            wait();
         }
     }
 }
