@@ -4,9 +4,9 @@ import com.github.mstepan.jraft.grpc.Raft.*;
 import com.github.mstepan.jraft.grpc.RaftServiceGrpc;
 import com.github.mstepan.jraft.topology.ClusterTopology;
 import com.github.mstepan.jraft.topology.HostPort;
+import com.github.mstepan.jraft.util.ManagedChannelWrapper;
+import com.github.mstepan.jraft.util.NetworkUtils;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,12 +31,6 @@ public enum NodeGlobalState {
     private final AtomicLong currentTerm = new AtomicLong(0L);
 
     private final AtomicLong logEntryIdx = new AtomicLong(0L);
-
-    public synchronized void setRole(NodeRole newRole) {
-        NodeRole prevRole = this.role;
-        this.role = newRole;
-        LOGGER.debug("Role changed: {} -> {}", prevRole, newRole);
-    }
 
     /*
     1. Converts to a Candidate
@@ -63,32 +57,27 @@ public enum NodeGlobalState {
                 var subtask =
                         scope.fork(
                                 () -> {
-                                    ManagedChannel channel =
-                                            ManagedChannelBuilder.forAddress(
-                                                            singleNode.host(), singleNode.port())
-                                                    .usePlaintext() // Required for plaintext
-                                                    // (non-SSL)
-                                                    // connections
-                                                    .build();
+                                    try (ManagedChannelWrapper channelWrapper =
+                                            NetworkUtils.newGrpcChannel(singleNode)) {
 
-                                    RaftServiceGrpc.RaftServiceBlockingStub stub =
-                                            RaftServiceGrpc.newBlockingStub(channel);
+                                        RaftServiceGrpc.RaftServiceBlockingStub stub =
+                                                RaftServiceGrpc.newBlockingStub(
+                                                        channelWrapper.channel());
 
-                                    VoteRequest request =
-                                            VoteRequest.newBuilder()
-                                                    .setCandidateId(
-                                                            ClusterTopology.INST.curNodeId())
-                                                    .setCandidateTerm(newCurTerm)
-                                                    .setLogEntryIdx(logEntryIdx.get())
-                                                    .build();
+                                        VoteRequest request =
+                                                VoteRequest.newBuilder()
+                                                        .setCandidateId(
+                                                                ClusterTopology.INST.curNodeId())
+                                                        .setCandidateTerm(newCurTerm)
+                                                        .setLogEntryIdx(logEntryIdx.get())
+                                                        .build();
 
-                                    VoteResponse response = stub.vote(request);
+                                        VoteResponse response = stub.vote(request);
 
-                                    LOGGER.info("Vote response: {}", response.getResult());
+                                        LOGGER.info("Vote response: {}", response.getResult());
 
-                                    channel.shutdown();
-
-                                    return response;
+                                        return response;
+                                    }
                                 });
 
                 allRequests.add(subtask);
@@ -122,7 +111,7 @@ public enum NodeGlobalState {
         }
     }
 
-    public boolean isLeader() {
+    public synchronized boolean isLeader() {
         return role == NodeRole.LEADER;
     }
 
@@ -138,13 +127,31 @@ public enum NodeGlobalState {
         return logEntryIdx.get();
     }
 
-    public synchronized void markAsLeader() {
-        role = NodeRole.LEADER;
+    public synchronized void setRoleIfDifferent(NodeRole newRole) {
+        if (role != newRole) {
+            setRole(newRole);
+        }
+    }
+
+    public synchronized void setRole(NodeRole newRole) {
+        NodeRole prevRole = this.role;
+        this.role = newRole;
+        LOGGER.debug("Role changed: {} -> {}", prevRole, newRole);
         notifyAll();
+    }
+
+    public synchronized void markAsLeader() {
+        setRole(NodeRole.LEADER);
     }
 
     public synchronized void waitTillNotLeader() throws InterruptedException {
         while (role != NodeRole.LEADER) {
+            wait();
+        }
+    }
+
+    public synchronized void waitTillLeader() throws InterruptedException {
+        while (role == NodeRole.LEADER) {
             wait();
         }
     }

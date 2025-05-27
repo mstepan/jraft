@@ -1,7 +1,8 @@
-package com.github.mstepan.jraft.vote;
+package com.github.mstepan.jraft;
 
 import com.github.mstepan.jraft.grpc.Raft;
 import com.github.mstepan.jraft.grpc.RaftServiceGrpc;
+import com.github.mstepan.jraft.state.LeaderInfo;
 import com.github.mstepan.jraft.state.NodeGlobalState;
 import com.github.mstepan.jraft.topology.ClusterTopology;
 import io.grpc.stub.StreamObserver;
@@ -9,7 +10,7 @@ import java.lang.invoke.MethodHandles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class VoteServiceImpl extends RaftServiceGrpc.RaftServiceImplBase {
+public class RaftServiceImpl extends RaftServiceGrpc.RaftServiceImplBase {
 
     private static final Logger LOGGER =
             LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -19,7 +20,8 @@ public class VoteServiceImpl extends RaftServiceGrpc.RaftServiceImplBase {
             Raft.AppendEntryRequest request,
             StreamObserver<Raft.AppendEntryResponse> responseObserver) {
 
-        // TODO: append entry from leader received
+        // append entry from leader received
+        LeaderInfo.INST.recordMessageFromLeader();
 
         responseObserver.onNext(Raft.AppendEntryResponse.newBuilder().build());
         responseObserver.onCompleted();

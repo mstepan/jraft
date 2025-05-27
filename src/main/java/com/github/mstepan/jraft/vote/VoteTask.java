@@ -1,12 +1,11 @@
 package com.github.mstepan.jraft.vote;
 
-import com.github.mstepan.jraft.ConcurrencyUtils;
 import com.github.mstepan.jraft.state.LeaderInfo;
 import com.github.mstepan.jraft.state.NodeGlobalState;
+import com.github.mstepan.jraft.util.ConcurrencyUtils;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.invoke.MethodHandles;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,17 +33,16 @@ public final class VoteTask implements Runnable {
 
         final ThreadLocalRandom random = ThreadLocalRandom.current();
 
-        while (!Thread.currentThread().isInterrupted()) {
+        while (true) {
             try {
-                if (NodeGlobalState.INST.isLeader()) {
-                    randomSleep(random);
-                    return;
-                }
+                // sleep this thread until it's NOT A LEADER anymore
+                NodeGlobalState.INST.waitTillLeader();
 
                 long voteStartTime = System.nanoTime();
 
                 // 150–300 ms
-                randomSleep(random);
+                ConcurrencyUtils.randomSleepInRange(
+                        random, VOTE_MIN_DELAY_IN_MS, VOTE_MAX_DELAY_IN_MS);
 
                 long leaderLastTimestamp = LeaderInfo.INST.lastLeaderTimestamp();
 
@@ -58,15 +56,10 @@ public final class VoteTask implements Runnable {
                 }
             } catch (InterruptedException interEx) {
                 Thread.currentThread().interrupt();
+                break;
             }
         }
 
         LOGGER.info("Voting thread gracefully stopped");
-    }
-
-    private void randomSleep(ThreadLocalRandom random) throws InterruptedException {
-        TimeUnit.MILLISECONDS.sleep(
-                VOTE_MIN_DELAY_IN_MS
-                        + random.nextLong(VOTE_MAX_DELAY_IN_MS - VOTE_MIN_DELAY_IN_MS + 1));
     }
 }

@@ -9,6 +9,7 @@ public enum LeaderInfo {
 
     public void recordMessageFromLeader() {
         lastMessageTimestampFromLeader.set(System.nanoTime());
+        NodeGlobalState.INST.setRoleIfDifferent(NodeRole.FOLLOWER);
     }
 
     public long lastLeaderTimestamp() {

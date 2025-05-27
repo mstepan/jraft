@@ -1,8 +1,16 @@
 package com.github.mstepan.jraft;
 
+import com.github.mstepan.jraft.grpc.Raft;
+import com.github.mstepan.jraft.grpc.RaftServiceGrpc;
 import com.github.mstepan.jraft.state.NodeGlobalState;
+import com.github.mstepan.jraft.topology.ClusterTopology;
+import com.github.mstepan.jraft.topology.HostPort;
+import com.github.mstepan.jraft.util.ConcurrencyUtils;
+import com.github.mstepan.jraft.util.ManagedChannelWrapper;
+import com.github.mstepan.jraft.util.NetworkUtils;
 import com.github.mstepan.jraft.vote.VoteTask;
 import java.lang.invoke.MethodHandles;
+import java.util.concurrent.StructuredTaskScope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,8 +29,32 @@ public class HeartbeatTask implements Runnable {
         while (true) {
             try {
                 if (NodeGlobalState.INST.isLeader()) {
-                    LOGGER.debug("I'm LEADER, sending heartbeat to other nodes...");
-                    // TODO: send EMPTY AppendEntry request from leader for each node
+                    // LOGGER.debug("I'm LEADER, sending heartbeat to other nodes...");
+
+                    //  send EMPTY AppendEntry request from leader to each node
+                    try (var scope = new StructuredTaskScope<Void>()) {
+                        for (HostPort singleNode : ClusterTopology.INST.seedNodes()) {
+                            scope.fork(
+                                    () -> {
+                                        try (ManagedChannelWrapper channelWrapper =
+                                                NetworkUtils.newGrpcChannel(singleNode)) {
+                                            RaftServiceGrpc.RaftServiceBlockingStub stub =
+                                                    RaftServiceGrpc.newBlockingStub(
+                                                            channelWrapper.channel());
+
+                                            Raft.AppendEntryRequest request =
+                                                    Raft.AppendEntryRequest.newBuilder().build();
+
+                                            Raft.AppendEntryResponse response =
+                                                    stub.appendEntry(request);
+
+                                            return null;
+                                        }
+                                    });
+                        }
+
+                        scope.join();
+                    }
 
                     ConcurrencyUtils.sleepMs(LEADER_PING_DELAY_IN_MS);
                 } else {

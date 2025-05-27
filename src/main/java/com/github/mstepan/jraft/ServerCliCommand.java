@@ -3,7 +3,6 @@ package com.github.mstepan.jraft;
 import com.github.mstepan.jraft.state.NodeGlobalState;
 import com.github.mstepan.jraft.state.NodeRole;
 import com.github.mstepan.jraft.topology.ClusterTopology;
-import com.github.mstepan.jraft.vote.VoteServiceImpl;
 import com.github.mstepan.jraft.vote.VoteTask;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
@@ -47,7 +46,7 @@ class ServerCliCommand implements Callable<Integer> {
 
             NodeGlobalState.INST.setRole(NodeRole.FOLLOWER);
 
-            Server server = ServerBuilder.forPort(port).addService(new VoteServiceImpl()).build();
+            Server server = ServerBuilder.forPort(port).addService(new RaftServiceImpl()).build();
             server.start();
             LOGGER.info("gRPC server started at: {}:{}", host, port);
 
