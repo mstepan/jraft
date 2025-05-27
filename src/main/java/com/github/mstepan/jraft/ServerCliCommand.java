@@ -1,13 +1,12 @@
 package com.github.mstepan.jraft;
 
-import com.github.mstepan.jraft.grpc.GreetingServiceGrpc;
-import com.github.mstepan.jraft.grpc.Hello;
-import com.github.mstepan.jraft.state.LeaderInfo;
+import com.github.mstepan.jraft.state.NodeGlobalState;
 import com.github.mstepan.jraft.state.NodeRole;
-import com.github.mstepan.jraft.state.NodeState;
+import com.github.mstepan.jraft.topology.ClusterTopology;
+import com.github.mstepan.jraft.vote.VoteServiceImpl;
+import com.github.mstepan.jraft.vote.VoteTask;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
-import io.grpc.stub.StreamObserver;
 import java.lang.invoke.MethodHandles;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -44,15 +43,12 @@ class ServerCliCommand implements Callable<Integer> {
     @Override
     public Integer call() {
         try {
-            LOGGER.info("Seed nodes: {}", seeds);
 
-            NodeState nodeState = new NodeState();
-            nodeState.setRole(NodeRole.FOLLOWER);
+            ClusterTopology.INST.addSeedNodes(seeds);
 
-            Server server =
-                    ServerBuilder.forPort(port)
-                            .addService(new ServerCliCommand.GreeterServiceImpl())
-                            .build();
+            NodeGlobalState.INST.setRole(NodeRole.FOLLOWER);
+
+            Server server = ServerBuilder.forPort(port).addService(new VoteServiceImpl()).build();
             server.start();
             LOGGER.info("gRPC server started at: {}:{}", host, port);
 
@@ -67,23 +63,6 @@ class ServerCliCommand implements Callable<Integer> {
         } catch (Exception ex) {
             LOGGER.error("Server failed to start", ex);
             return -1;
-        }
-    }
-
-    static class GreeterServiceImpl extends GreetingServiceGrpc.GreetingServiceImplBase {
-        @Override
-        public void sayHello(
-                Hello.HelloRequest request, StreamObserver<Hello.HelloReply> responseObserver) {
-
-            LeaderInfo.INST.recordMessageFromLeader();
-
-            String name = request.getName();
-
-            Hello.HelloReply reply =
-                    Hello.HelloReply.newBuilder().setMessage("Hello from server, " + name).build();
-
-            responseObserver.onNext(reply);
-            responseObserver.onCompleted();
         }
     }
 }

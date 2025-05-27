@@ -6,4 +6,4 @@ JVM_JMX="-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.local.onl
 
 java $JVM_THREADS $JVM_HEAP $JVM_JMX --enable-preview -jar target/jraft-0.0.1-SNAPSHOT.jar \
 --host=localhost --port=9091 \
---seed="localhost:9091" --seed="localhost:9092" --seed="localhost:9093"
+--seed="localhost:9092" --seed="localhost:9093"

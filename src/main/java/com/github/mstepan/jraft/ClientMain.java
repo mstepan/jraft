@@ -1,34 +1,40 @@
 package com.github.mstepan.jraft;
 
-import com.github.mstepan.jraft.grpc.GreetingServiceGrpc;
-import com.github.mstepan.jraft.grpc.Hello.HelloReply;
-import com.github.mstepan.jraft.grpc.Hello.HelloRequest;
+import com.github.mstepan.jraft.grpc.Raft;
+import com.github.mstepan.jraft.grpc.VoteServiceGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.lang.invoke.MethodHandles;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ClientMain {
 
-    private static final int SERVER_DEFAULT_PORT = 9091;
+    private static final String SERVER_HOST = "localhost";
+    private static final int SERVER_PORT = 9091;
 
     private static final Logger LOGGER =
             LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     public static void main(String[] args) {
         ManagedChannel channel =
-                ManagedChannelBuilder.forAddress("localhost", SERVER_DEFAULT_PORT)
+                ManagedChannelBuilder.forAddress(SERVER_HOST, SERVER_PORT)
                         .usePlaintext() // Required for plaintext (non-SSL) connections
                         .build();
 
-        GreetingServiceGrpc.GreetingServiceBlockingStub stub =
-                GreetingServiceGrpc.newBlockingStub(channel);
+        VoteServiceGrpc.VoteServiceBlockingStub stub = VoteServiceGrpc.newBlockingStub(channel);
 
-        HelloRequest request = HelloRequest.newBuilder().setName("Maksym").build();
-        HelloReply response = stub.sayHello(request);
+        Raft.RequestVote request =
+                Raft.RequestVote.newBuilder()
+                        .setCandidateId(UUID.randomUUID().toString())
+                        .setCandidateTerm(123L)
+                        .setLogEntryIdx(456L)
+                        .build();
 
-        LOGGER.info("Received from server: {}", response.getMessage());
+        Raft.VoteResponse response = stub.vote(request);
+
+        LOGGER.info("Vote response: {}", response.getResult());
 
         channel.shutdown();
     }

@@ -1,6 +1,7 @@
-package com.github.mstepan.jraft;
+package com.github.mstepan.jraft.vote;
 
 import com.github.mstepan.jraft.state.LeaderInfo;
+import com.github.mstepan.jraft.state.NodeGlobalState;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.invoke.MethodHandles;
 import java.util.concurrent.ThreadLocalRandom;
@@ -8,7 +9,7 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class VoteTask implements Runnable {
+public final class VoteTask implements Runnable {
 
     private static final Logger LOGGER =
             LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -42,6 +43,8 @@ final class VoteTask implements Runnable {
                 if (leaderLastTimestamp < voteStartTime) {
                     // nothing heard from leader so far, starting election process
                     LOGGER.debug("Starting election process");
+
+                    NodeGlobalState.INST.startElection();
 
                     // TODO:
                 } else {
