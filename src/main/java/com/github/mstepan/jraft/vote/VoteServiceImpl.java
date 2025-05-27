@@ -17,7 +17,7 @@ public class VoteServiceImpl extends VoteServiceGrpc.VoteServiceImplBase {
         LOGGER.debug("Vote request: {}", request);
 
         Raft.VoteResponse response =
-                Raft.VoteResponse.newBuilder().setResult(Raft.VoteResult.GRANTED).build();
+                Raft.VoteResponse.newBuilder().setResult(Raft.VoteResult.REJECTED).build();
 
         responseObserver.onNext(response);
         responseObserver.onCompleted();

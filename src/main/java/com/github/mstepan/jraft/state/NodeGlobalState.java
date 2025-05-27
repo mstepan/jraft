@@ -35,7 +35,7 @@ public enum NodeGlobalState {
     }
 
     public synchronized void startElection() {
-        // Once a node becomes a Candidate, it:
+        // Node becomes a Candidate
         setRole(NodeRole.CANDIDATE);
 
         // Increments its current term.

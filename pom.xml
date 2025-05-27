@@ -10,6 +10,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <main.class.name>com.github.mstepan.jraft.ServerMain</main.class.name>
 
         <!-- Java version -->
         <java.version>23</java.version>
@@ -55,7 +56,7 @@
             <extension>
                 <groupId>kr.motd.maven</groupId>
                 <artifactId>os-maven-plugin</artifactId>
-                <version>1.6.2</version>
+                <version>1.7.1</version>
             </extension>
         </extensions>
 
@@ -218,11 +219,16 @@
                         <configuration>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
                             <transformers>
-                                <!-- Adds the Main-Class entry to the manifest -->
                                 <transformer
                                         implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>com.github.mstepan.jraft.ServerMain</mainClass>
+                                    <mainClass>${main.class.name}</mainClass>
+                                    <manifestEntries>
+                                        <Implementation-Version>${version}</Implementation-Version>
+                                        <Main-Class>${main.class.name}</Main-Class>
+                                    </manifestEntries>
                                 </transformer>
+                                <transformer
+                                        implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                             </transformers>
                         </configuration>
                     </execution>
