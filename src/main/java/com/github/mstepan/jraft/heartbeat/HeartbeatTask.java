@@ -1,4 +1,6 @@
-package com.github.mstepan.jraft;
+package com.github.mstepan.jraft.heartbeat;
+
+import static com.github.mstepan.jraft.ServerCliCommand.CLUSTER_TOPOLOGY_CONTEXT;
 
 import com.github.mstepan.jraft.grpc.Raft;
 import com.github.mstepan.jraft.grpc.RaftServiceGrpc;
@@ -9,12 +11,16 @@ import com.github.mstepan.jraft.util.ConcurrencyUtils;
 import com.github.mstepan.jraft.util.ManagedChannelWrapper;
 import com.github.mstepan.jraft.util.NetworkUtils;
 import com.github.mstepan.jraft.vote.VoteTask;
-import java.lang.invoke.MethodHandles;
-import java.util.concurrent.StructuredTaskScope;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
-public class HeartbeatTask implements Runnable {
+import java.lang.invoke.MethodHandles;
+import java.util.concurrent.Callable;
+import java.util.concurrent.StructuredTaskScope;
+
+public class HeartbeatTask implements Callable<Void> {
 
     // should be something like VoteTask.VOTE_MIN_DELAY_IN_MS / 3
     private static final long LEADER_PING_DELAY_IN_MS = VoteTask.VOTE_MIN_DELAY_IN_MS / 3;
@@ -23,7 +29,12 @@ public class HeartbeatTask implements Runnable {
             LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     @Override
-    public void run() {
+    public Void call() {
+        Thread.currentThread().setName("Heartbeat");
+
+        ClusterTopology cluster = CLUSTER_TOPOLOGY_CONTEXT.get();
+        MDC.put("nodeId", cluster.curNodeId());
+
         LOGGER.info("Heartbeat started");
 
         while (true) {
@@ -33,7 +44,7 @@ public class HeartbeatTask implements Runnable {
 
                     //  send EMPTY AppendEntry request from leader to each node
                     try (var scope = new StructuredTaskScope<Void>()) {
-                        for (HostPort singleNode : ClusterTopology.INST.seedNodes()) {
+                        for (HostPort singleNode : cluster.seedNodes()) {
                             scope.fork(
                                     () -> {
                                         try (ManagedChannelWrapper channelWrapper =
@@ -47,6 +58,10 @@ public class HeartbeatTask implements Runnable {
 
                                             Raft.AppendEntryResponse response =
                                                     stub.appendEntry(request);
+
+                                            // TODO: If RPC request or response contains term T >
+                                            // currentTerm:
+                                            // set currentTerm = T, convert to follower
 
                                             return null;
                                         }
@@ -66,7 +81,7 @@ public class HeartbeatTask implements Runnable {
                 break;
             }
         }
-
         LOGGER.info("Heartbeat stopped");
+        return null;
     }
 }

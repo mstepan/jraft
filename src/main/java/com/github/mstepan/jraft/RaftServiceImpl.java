@@ -4,7 +4,7 @@ import com.github.mstepan.jraft.grpc.Raft;
 import com.github.mstepan.jraft.grpc.RaftServiceGrpc;
 import com.github.mstepan.jraft.state.LeaderInfo;
 import com.github.mstepan.jraft.state.NodeGlobalState;
-import com.github.mstepan.jraft.topology.ClusterTopology;
+import com.github.mstepan.jraft.util.ScopedValueInterceptor;
 import io.grpc.stub.StreamObserver;
 import java.lang.invoke.MethodHandles;
 import org.slf4j.Logger;
@@ -19,6 +19,9 @@ public class RaftServiceImpl extends RaftServiceGrpc.RaftServiceImplBase {
     public void appendEntry(
             Raft.AppendEntryRequest request,
             StreamObserver<Raft.AppendEntryResponse> responseObserver) {
+
+        // TODO: If RPC request or response contains term T > currentTerm:
+        // set currentTerm = T, convert to follower
 
         // append entry from leader received
         LeaderInfo.INST.recordMessageFromLeader();
@@ -43,7 +46,7 @@ public class RaftServiceImpl extends RaftServiceGrpc.RaftServiceImplBase {
             return;
         }
 
-        String curNodeId = ClusterTopology.INST.curNodeId();
+        String curNodeId = ScopedValueInterceptor.CLUSTER_TOPOLOGY.get().curNodeId();
         String votedFor = NodeGlobalState.INST.votedFor();
 
         if ((votedFor == null || votedFor.equals(curNodeId))

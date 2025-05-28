@@ -27,7 +27,7 @@
   preview mode for java 23.
 
 ```bash
-java --enable-preview -jar target/jraft-0.0.1-SNAPSHOT.jar --host="localhost" --port=9091 --seed="localhost:9091" --seed="localhost:9092" --seed="localhost:9093"
+java --enable-preview -jar target/jraft-0.0.1-SNAPSHOT.jar --host="localhost" --port=9091 --seed="localhost:9092" --seed="localhost:9093"
 ```
 
 ### Native image <-- NOT WORKING, requires logback replacement or native build

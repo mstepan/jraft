@@ -8,18 +8,40 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public enum ClusterTopology {
-    INST;
+public final class ClusterTopology {
+
+    private static final int MIN_PORT_VALUE = 0;
+    private static final int MAX_PORT_VALUE = 65535;
 
     private static final Logger LOGGER =
             LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-    private final List<HostPort> seedNodes = new ArrayList<>();
+    private final String curNodeId;
+    private final String host;
+    private final int port;
+    private final List<HostPort> seedNodes;
 
-    private final String curNodeId = UUID.randomUUID().toString();
+    public ClusterTopology(String curNodeId, String host, int port, List<String> seeds) {
+        if (host == null) {
+            throw new IllegalArgumentException("'host' is null");
+        }
+        if (seeds == null) {
+            throw new IllegalArgumentException("'seeds' is null");
+        }
+        if (port < MIN_PORT_VALUE || port > MAX_PORT_VALUE) {
+            throw new IllegalArgumentException(
+                    "'port' is out of range, should be between %d and %d"
+                            .formatted(MIN_PORT_VALUE, MAX_PORT_VALUE));
+        }
 
-    public void addSeedNodes(List<String> seeds) {
-        seedNodes.clear();
+        if (curNodeId == null) {
+            this.curNodeId = UUID.randomUUID().toString();
+        } else {
+            this.curNodeId = curNodeId;
+        }
+        this.host = host;
+        this.port = port;
+        this.seedNodes = new ArrayList<>(seeds.size());
 
         for (String singleSeed : seeds) {
             String[] parts = singleSeed.split(":");
@@ -34,12 +56,20 @@ public enum ClusterTopology {
         LOGGER.info("Current node ID: {}", curNodeId);
     }
 
-    public List<HostPort> seedNodes() {
-        return Collections.unmodifiableList(seedNodes);
-    }
-
     public String curNodeId() {
         return curNodeId;
+    }
+
+    public String host() {
+        return host;
+    }
+
+    public int port() {
+        return port;
+    }
+
+    public List<HostPort> seedNodes() {
+        return Collections.unmodifiableList(seedNodes);
     }
 
     public int clusterSize() {

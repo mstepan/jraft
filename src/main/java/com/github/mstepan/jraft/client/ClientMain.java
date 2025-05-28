@@ -1,4 +1,4 @@
-package com.github.mstepan.jraft;
+package com.github.mstepan.jraft.client;
 
 import com.github.mstepan.jraft.grpc.Raft;
 import com.github.mstepan.jraft.grpc.RaftServiceGrpc;

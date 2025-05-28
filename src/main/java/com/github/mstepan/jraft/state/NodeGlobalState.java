@@ -1,5 +1,7 @@
 package com.github.mstepan.jraft.state;
 
+import static com.github.mstepan.jraft.ServerCliCommand.CLUSTER_TOPOLOGY_CONTEXT;
+
 import com.github.mstepan.jraft.grpc.Raft.*;
 import com.github.mstepan.jraft.grpc.RaftServiceGrpc;
 import com.github.mstepan.jraft.topology.ClusterTopology;
@@ -41,6 +43,8 @@ public enum NodeGlobalState {
      */
     public synchronized void startElection() {
 
+        ClusterTopology cluster = CLUSTER_TOPOLOGY_CONTEXT.get();
+
         // Node becomes a Candidate
         setRole(NodeRole.CANDIDATE);
 
@@ -48,12 +52,12 @@ public enum NodeGlobalState {
         long newCurTerm = currentTerm.incrementAndGet();
 
         // Votes for itself.
-        votedFor = ClusterTopology.INST.curNodeId();
+        votedFor = cluster.curNodeId();
 
         List<StructuredTaskScope.Subtask<VoteResponse>> allRequests = new ArrayList<>();
 
         try (var scope = new StructuredTaskScope<VoteResponse>()) {
-            for (HostPort singleNode : ClusterTopology.INST.seedNodes()) {
+            for (HostPort singleNode : cluster.seedNodes()) {
                 var subtask =
                         scope.fork(
                                 () -> {
@@ -66,8 +70,7 @@ public enum NodeGlobalState {
 
                                         VoteRequest request =
                                                 VoteRequest.newBuilder()
-                                                        .setCandidateId(
-                                                                ClusterTopology.INST.curNodeId())
+                                                        .setCandidateId(cluster.curNodeId())
                                                         .setCandidateTerm(newCurTerm)
                                                         .setLogEntryIdx(logEntryIdx.get())
                                                         .build();
@@ -96,7 +99,7 @@ public enum NodeGlobalState {
                         ++grantedVotesCnt;
                     }
 
-                    if (grantedVotesCnt >= ClusterTopology.INST.clusterSize()) {
+                    if (grantedVotesCnt >= cluster.clusterSize()) {
                         LOGGER.info("Vote majority reached");
                         // If the Candidate receives votes from a majority of nodes, it becomes the
                         // Leader.
