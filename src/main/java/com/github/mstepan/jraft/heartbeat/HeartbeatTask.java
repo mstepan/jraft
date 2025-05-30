@@ -4,6 +4,7 @@ import static com.github.mstepan.jraft.ServerCliCommand.CLUSTER_TOPOLOGY_CONTEXT
 
 import com.github.mstepan.jraft.grpc.Raft;
 import com.github.mstepan.jraft.state.NodeGlobalState;
+import com.github.mstepan.jraft.state.NodeRole;
 import com.github.mstepan.jraft.topology.ClusterTopology;
 import com.github.mstepan.jraft.topology.HostPort;
 import com.github.mstepan.jraft.topology.ManagedChannelsPool;
@@ -18,7 +19,7 @@ import org.slf4j.MDC;
 
 public class HeartbeatTask implements Callable<Void> {
 
-    // should be something like VoteTask.VOTE_MIN_DELAY_IN_MS / 3
+    // should be 2 or 3 times less than 'VoteTask.VOTE_MIN_DELAY_IN_MS' value
     private static final long LEADER_PING_DELAY_IN_MS = VoteTask.VOTE_MIN_DELAY_IN_MS / 3;
 
     private static final Logger LOGGER =
@@ -40,22 +41,31 @@ public class HeartbeatTask implements Callable<Void> {
 
                     //  send EMPTY AppendEntry request from leader to each node
                     try (var scope = new StructuredTaskScope<Void>()) {
+
+                        final long curNodeTerm = NodeGlobalState.INST.currentTerm();
+
                         for (HostPort singleNode : cluster.seedNodes()) {
                             scope.fork(
                                     () -> {
                                         var stub =
                                                 ManagedChannelsPool.INST.newStubInstance(
                                                         singleNode);
-
                                         Raft.AppendEntryRequest request =
-                                                Raft.AppendEntryRequest.newBuilder().build();
+                                                Raft.AppendEntryRequest.newBuilder()
+                                                        .setNodeTerm(curNodeTerm)
+                                                        .build();
 
                                         Raft.AppendEntryResponse response =
                                                 stub.appendEntry(request);
 
-                                        // TODO: If RPC request or response contains term T >
-                                        // currentTerm:
-                                        // set currentTerm = T, convert to follower
+                                        // If RPC request or response contains term T > currentTerm:
+                                        // set currentTerm = T, convert to follower (§5.1)
+                                        if (response.getNodeTerm()
+                                                > NodeGlobalState.INST.currentTerm()) {
+                                            NodeGlobalState.INST.setCurrentTerm(
+                                                    response.getNodeTerm());
+                                            NodeGlobalState.INST.setRole(NodeRole.FOLLOWER);
+                                        }
 
                                         return null;
                                     });

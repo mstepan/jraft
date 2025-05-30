@@ -52,9 +52,9 @@ public enum NodeGlobalState {
         // Votes for itself.
         votedFor = cluster.curNodeId();
 
-        List<StructuredTaskScope.Subtask<VoteResponse>> allRequests = new ArrayList<>();
+        List<StructuredTaskScope.Subtask<VoteResult>> allRequests = new ArrayList<>();
 
-        try (var scope = new StructuredTaskScope<VoteResponse>()) {
+        try (var scope = new StructuredTaskScope<VoteResult>()) {
             for (HostPort singleNode : cluster.seedNodes()) {
                 var subtask =
                         scope.fork(
@@ -69,10 +69,9 @@ public enum NodeGlobalState {
                                                     .build();
 
                                     VoteResponse response = stub.vote(request);
-
                                     LOGGER.debug("Vote response: {}", response.getResult());
 
-                                    return response;
+                                    return response.getResult();
                                 });
 
                 allRequests.add(subtask);
@@ -83,11 +82,10 @@ public enum NodeGlobalState {
             // initialised to 1, assuming we have voted for ourselves
             int grantedVotesCnt = 1;
 
-            for (StructuredTaskScope.Subtask<VoteResponse> singleSubtask : allRequests) {
+            for (StructuredTaskScope.Subtask<VoteResult> singleSubtask : allRequests) {
 
                 if (singleSubtask.state() == StructuredTaskScope.Subtask.State.SUCCESS) {
-                    VoteResponse singleVoteResponse = singleSubtask.get();
-                    if (singleVoteResponse.getResult() == VoteResult.GRANTED) {
+                    if (singleSubtask.get() == VoteResult.GRANTED) {
                         ++grantedVotesCnt;
                     }
 
@@ -112,6 +110,10 @@ public enum NodeGlobalState {
 
     public long currentTerm() {
         return currentTerm.get();
+    }
+
+    public void setCurrentTerm(long newTerm) {
+        currentTerm.set(newTerm);
     }
 
     public String votedFor() {

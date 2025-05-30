@@ -4,6 +4,7 @@ import com.github.mstepan.jraft.grpc.Raft;
 import com.github.mstepan.jraft.grpc.RaftServiceGrpc;
 import com.github.mstepan.jraft.state.LeaderInfo;
 import com.github.mstepan.jraft.state.NodeGlobalState;
+import com.github.mstepan.jraft.state.NodeRole;
 import com.github.mstepan.jraft.util.ScopedValueInterceptor;
 import io.grpc.stub.StreamObserver;
 import java.lang.invoke.MethodHandles;
@@ -20,8 +21,12 @@ public class RaftServiceImpl extends RaftServiceGrpc.RaftServiceImplBase {
             Raft.AppendEntryRequest request,
             StreamObserver<Raft.AppendEntryResponse> responseObserver) {
 
-        // TODO: If RPC request or response contains term T > currentTerm:
-        // set currentTerm = T, convert to follower
+        // If RPC request or response contains term T > currentTerm:
+        // set currentTerm = T, convert to follower (§5.1)
+        if (request.getNodeTerm() > NodeGlobalState.INST.currentTerm()) {
+            NodeGlobalState.INST.setCurrentTerm(request.getNodeTerm());
+            NodeGlobalState.INST.setRole(NodeRole.FOLLOWER);
+        }
 
         // append entry from leader received
         LeaderInfo.INST.recordMessageFromLeader();
@@ -42,7 +47,7 @@ public class RaftServiceImpl extends RaftServiceGrpc.RaftServiceImplBase {
         long curTerm = NodeGlobalState.INST.currentTerm();
 
         if (request.getCandidateTerm() < curTerm) {
-            reply(responseObserver, Raft.VoteResult.REJECTED);
+            reply(responseObserver, Raft.VoteResult.REJECTED, NodeGlobalState.INST.currentTerm());
             return;
         }
 
@@ -51,7 +56,7 @@ public class RaftServiceImpl extends RaftServiceGrpc.RaftServiceImplBase {
 
         if ((votedFor == null || votedFor.equals(curNodeId))
                 && request.getLogEntryIdx() >= NodeGlobalState.INST.logEntryIndex()) {
-            reply(responseObserver, Raft.VoteResult.GRANTED);
+            reply(responseObserver, Raft.VoteResult.GRANTED, NodeGlobalState.INST.currentTerm());
             return;
         }
 
@@ -59,8 +64,11 @@ public class RaftServiceImpl extends RaftServiceGrpc.RaftServiceImplBase {
     }
 
     private static void reply(
-            StreamObserver<Raft.VoteResponse> responseObserver, Raft.VoteResult status) {
-        Raft.VoteResponse response = Raft.VoteResponse.newBuilder().setResult(status).build();
+            StreamObserver<Raft.VoteResponse> responseObserver,
+            Raft.VoteResult status,
+            long curNodeTerm) {
+        Raft.VoteResponse response =
+                Raft.VoteResponse.newBuilder().setResult(status).setNodeTerm(curNodeTerm).build();
 
         responseObserver.onNext(response);
         responseObserver.onCompleted();

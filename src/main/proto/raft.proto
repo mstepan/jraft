@@ -23,6 +23,9 @@ message VoteRequest {
 
 message VoteResponse {
   VoteResult result = 1;
+
+  // Receiver’s current term (may be higher then current node term)
+  uint64 node_term = 2;
 }
 
 enum VoteResult {
@@ -31,8 +34,12 @@ enum VoteResult {
 }
 
 message AppendEntryRequest {
-
+  // Node current term value
+  uint64 node_term = 1;
 }
 
-message AppendEntryResponse {}
+message AppendEntryResponse {
+  // Node current term value
+  uint64 node_term = 1;
+}
 
