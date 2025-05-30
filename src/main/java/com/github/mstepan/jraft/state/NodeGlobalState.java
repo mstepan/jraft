@@ -3,11 +3,9 @@ package com.github.mstepan.jraft.state;
 import static com.github.mstepan.jraft.ServerCliCommand.CLUSTER_TOPOLOGY_CONTEXT;
 
 import com.github.mstepan.jraft.grpc.Raft.*;
-import com.github.mstepan.jraft.grpc.RaftServiceGrpc;
 import com.github.mstepan.jraft.topology.ClusterTopology;
 import com.github.mstepan.jraft.topology.HostPort;
-import com.github.mstepan.jraft.util.ManagedChannelWrapper;
-import com.github.mstepan.jraft.util.NetworkUtils;
+import com.github.mstepan.jraft.topology.ManagedChannelsPool;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
@@ -61,26 +59,20 @@ public enum NodeGlobalState {
                 var subtask =
                         scope.fork(
                                 () -> {
-                                    try (ManagedChannelWrapper channelWrapper =
-                                            NetworkUtils.newGrpcChannel(singleNode)) {
+                                    var stub = ManagedChannelsPool.INST.newStubInstance(singleNode);
 
-                                        RaftServiceGrpc.RaftServiceBlockingStub stub =
-                                                RaftServiceGrpc.newBlockingStub(
-                                                        channelWrapper.channel());
+                                    VoteRequest request =
+                                            VoteRequest.newBuilder()
+                                                    .setCandidateId(cluster.curNodeId())
+                                                    .setCandidateTerm(newCurTerm)
+                                                    .setLogEntryIdx(logEntryIdx.get())
+                                                    .build();
 
-                                        VoteRequest request =
-                                                VoteRequest.newBuilder()
-                                                        .setCandidateId(cluster.curNodeId())
-                                                        .setCandidateTerm(newCurTerm)
-                                                        .setLogEntryIdx(logEntryIdx.get())
-                                                        .build();
+                                    VoteResponse response = stub.vote(request);
 
-                                        VoteResponse response = stub.vote(request);
+                                    LOGGER.debug("Vote response: {}", response.getResult());
 
-                                        LOGGER.info("Vote response: {}", response.getResult());
-
-                                        return response;
-                                    }
+                                    return response;
                                 });
 
                 allRequests.add(subtask);
@@ -100,7 +92,7 @@ public enum NodeGlobalState {
                     }
 
                     if (grantedVotesCnt >= cluster.clusterSize()) {
-                        LOGGER.info("Vote majority reached");
+                        LOGGER.debug("Vote majority reached");
                         // If the Candidate receives votes from a majority of nodes, it becomes the
                         // Leader.
                         markAsLeader();
@@ -139,7 +131,9 @@ public enum NodeGlobalState {
     public synchronized void setRole(NodeRole newRole) {
         NodeRole prevRole = this.role;
         this.role = newRole;
-        LOGGER.debug("Role changed: {} -> {}", prevRole, newRole);
+        if (prevRole != newRole) {
+            LOGGER.info("Role changed: {} -> {}", prevRole, newRole);
+        }
         notifyAll();
     }
 

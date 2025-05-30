@@ -34,7 +34,7 @@ public class ClientMain {
 
         Raft.VoteResponse response = stub.vote(request);
 
-        LOGGER.info("Vote response: {}", response.getResult());
+        LOGGER.debug("Vote response: {}", response.getResult());
 
         channel.shutdown();
     }

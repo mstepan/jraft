@@ -4,6 +4,7 @@ import com.github.mstepan.jraft.heartbeat.HeartbeatTask;
 import com.github.mstepan.jraft.state.NodeGlobalState;
 import com.github.mstepan.jraft.state.NodeRole;
 import com.github.mstepan.jraft.topology.ClusterTopology;
+import com.github.mstepan.jraft.topology.ManagedChannelsPool;
 import com.github.mstepan.jraft.util.ScopedValueInterceptor;
 import com.github.mstepan.jraft.vote.VoteTask;
 import io.grpc.*;
@@ -58,6 +59,8 @@ public final class ServerCliCommand implements Callable<Integer> {
             return 0;
         } catch (Exception ex) {
             return -1;
+        } finally {
+            ManagedChannelsPool.INST.close();
         }
     }
 
