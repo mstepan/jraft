@@ -25,6 +25,10 @@ public class HeartbeatTask implements Callable<Void> {
     private static final Logger LOGGER =
             LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
+    /**
+     * Leaders send periodic heartbeats (AppendEntries RPCs that carry no log entries) to all
+     * followers in order to maintain their authority
+     */
     @Override
     public Void call() {
         Thread.currentThread().setName("Heartbeat");

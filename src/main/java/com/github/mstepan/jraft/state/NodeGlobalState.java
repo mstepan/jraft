@@ -32,29 +32,35 @@ public enum NodeGlobalState {
 
     private final AtomicLong logEntryIdx = new AtomicLong(0L);
 
-    /*
-    1. Converts to a Candidate
-    2. Increments its current term
-    3. Votes for itself
-    4. Resets its election timeout
-    5. Sends RequestVote RPCs to all other nodes
+    /**
+     * To begin an election, a follower increments its current term and transitions to candidate
+     * state. It then votes for itself and issues RequestVote RPCs in parallel to each of the other
+     * servers in the cluster. A candidate continues in this state until one of three things
+     * happens:
+     *
+     * <p>(a) it wins the election,
+     *
+     * <p>(b) another server establishes itself as leader, or
+     *
+     * <p>(c) a period of time goes by with no winner.
      */
     public synchronized void startElection() {
 
         ClusterTopology cluster = CLUSTER_TOPOLOGY_CONTEXT.get();
 
-        // Node becomes a Candidate
-        setRole(NodeRole.CANDIDATE);
-
-        // Increments its current term.
+        // 1. increments its current term
         long newCurTerm = currentTerm.incrementAndGet();
 
-        // Votes for itself.
+        // 2. transitions to candidate state
+        setRole(NodeRole.CANDIDATE);
+
+        // 3. votes for itself
         votedFor = cluster.curNodeId();
 
-        List<StructuredTaskScope.Subtask<VoteResult>> allRequests = new ArrayList<>();
+        // 4. issues RequestVote RPCs in parallel to each of the other servers in the cluster
+        List<StructuredTaskScope.Subtask<VoteResponse>> allRequests = new ArrayList<>();
 
-        try (var scope = new StructuredTaskScope<VoteResult>()) {
+        try (var scope = new StructuredTaskScope<VoteResponse>()) {
             for (HostPort singleNode : cluster.seedNodes()) {
                 var subtask =
                         scope.fork(
@@ -71,7 +77,7 @@ public enum NodeGlobalState {
                                     VoteResponse response = stub.vote(request);
                                     LOGGER.debug("Vote response: {}", response.getResult());
 
-                                    return response.getResult();
+                                    return response;
                                 });
 
                 allRequests.add(subtask);
@@ -82,10 +88,21 @@ public enum NodeGlobalState {
             // initialised to 1, assuming we have voted for ourselves
             int grantedVotesCnt = 1;
 
-            for (StructuredTaskScope.Subtask<VoteResult> singleSubtask : allRequests) {
-
+            for (StructuredTaskScope.Subtask<VoteResponse> singleSubtask : allRequests) {
                 if (singleSubtask.state() == StructuredTaskScope.Subtask.State.SUCCESS) {
-                    if (singleSubtask.get() == VoteResult.GRANTED) {
+
+                    VoteResponse response = singleSubtask.get();
+
+                    // If RPC request or response contains term T > currentTerm:
+                    // set currentTerm = T, convert to follower (§5.1)
+
+                    if (response.getNodeTerm() > NodeGlobalState.INST.currentTerm()) {
+                        NodeGlobalState.INST.setCurrentTerm(response.getNodeTerm());
+                        NodeGlobalState.INST.setRole(NodeRole.FOLLOWER);
+                        break;
+                    }
+
+                    if (response.getResult() == VoteResult.GRANTED) {
                         ++grantedVotesCnt;
                     }
 

@@ -1,5 +1,6 @@
 # Raft protocol implementation in Java
 
+* [Implement RAFT protocol](docs/raft.pdf) (leader election)
 * Written in `Java 23`. Version specified inside `.sdkmanrc` file using [sdkman](https://sdkman.io/usage)
 * Maven `v3.9.9` with the [wrapper](https://maven.apache.org/wrapper/)
 
@@ -27,10 +28,14 @@
   preview mode for java 23.
 
 ```bash
-java --enable-preview -jar target/jraft-0.0.1-SNAPSHOT.jar --host="localhost" --port=9091 --seed="localhost:9092" --seed="localhost:9093"
+./run1.sh
+
+./run2.sh
+
+./run3.sh
 ```
 
-### Native image <-- NOT WORKING, requires logback replacement or native build
+### Native image <-- NOT WORKING, requires logback replacement for native build
 
 [//]: # (* Build native image using maven `native` profile)
 

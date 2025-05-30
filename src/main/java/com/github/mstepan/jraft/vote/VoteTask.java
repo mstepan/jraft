@@ -17,10 +17,7 @@ public final class VoteTask implements Callable<Void> {
     private static final Logger LOGGER =
             LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-    // TODO: use below values after testing
-    //    private static final long VOTE_MIN_DELAY_IN_MS = 150L;
-    //    private static final long VOTE_MAX_DELAY_IN_MS = 300L;
-
+    // election timeout should be in range: 150–300 ms
     public static final long VOTE_MIN_DELAY_IN_MS = 150L;
     public static final long VOTE_MAX_DELAY_IN_MS = 300L;
 
@@ -31,8 +28,9 @@ public final class VoteTask implements Callable<Void> {
         ClusterTopology cluster = CLUSTER_TOPOLOGY_CONTEXT.get();
         MDC.put("nodeId", cluster.curNodeId());
 
-        // Initial delay to give some time for a cluster to start
-        if (!ConcurrencyUtils.randomSleepInRangeNoException(3000L, 10_000)) {
+        // Initial delay to give some time for a cluster to boot
+        if (!ConcurrencyUtils.randomSleepInRangeNoException(1000L, 3_000)) {
+            LOGGER.debug("Vote tass was interrupted during initial sleep");
             return null;
         }
 
@@ -43,15 +41,17 @@ public final class VoteTask implements Callable<Void> {
                 // sleep this thread until it's NOT A LEADER anymore
                 NodeGlobalState.INST.waitTillLeader();
 
-                long voteStartTime = System.nanoTime();
+                final long voteStartTime = System.nanoTime();
 
-                // 150–300 ms
+                // election timeout
                 ConcurrencyUtils.randomSleepInRange(VOTE_MIN_DELAY_IN_MS, VOTE_MAX_DELAY_IN_MS);
 
                 long leaderLastTimestamp = LeaderInfo.INST.lastLeaderTimestamp();
 
                 if (leaderLastTimestamp < voteStartTime) {
-                    // nothing heard from leader so far, starting election process
+                    // If a follower receives no communication over a period of time called the
+                    // election timeout, then it assumes there is no viable leader and begins an
+                    // election to choose a new leader.
                     LOGGER.debug("Starting election process");
 
                     NodeGlobalState.INST.startElection();
