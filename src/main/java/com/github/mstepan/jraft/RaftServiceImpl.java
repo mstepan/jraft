@@ -11,7 +11,7 @@ import java.lang.invoke.MethodHandles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class RaftServiceImpl extends RaftServiceGrpc.RaftServiceImplBase {
+public final class RaftServiceImpl extends RaftServiceGrpc.RaftServiceImplBase {
 
     private static final Logger LOGGER =
             LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());

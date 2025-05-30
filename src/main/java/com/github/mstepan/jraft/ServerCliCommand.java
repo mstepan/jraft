@@ -5,6 +5,7 @@ import com.github.mstepan.jraft.state.NodeGlobalState;
 import com.github.mstepan.jraft.state.NodeRole;
 import com.github.mstepan.jraft.topology.ClusterTopology;
 import com.github.mstepan.jraft.topology.ManagedChannelsPool;
+import com.github.mstepan.jraft.util.MDCInterceptor;
 import com.github.mstepan.jraft.util.ScopedValueInterceptor;
 import com.github.mstepan.jraft.vote.VoteTask;
 import io.grpc.*;
@@ -80,6 +81,7 @@ public final class ServerCliCommand implements Callable<Integer> {
                                 .addService(
                                         ServerInterceptors.intercept(
                                                 new RaftServiceImpl(),
+                                                new MDCInterceptor(cluster),
                                                 new ScopedValueInterceptor(cluster)))
                                 .build();
 
