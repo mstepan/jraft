@@ -4,7 +4,6 @@ import static com.github.mstepan.jraft.ServerCliCommand.CLUSTER_TOPOLOGY_CONTEXT
 
 import com.github.mstepan.jraft.grpc.Raft;
 import com.github.mstepan.jraft.state.NodeGlobalState;
-import com.github.mstepan.jraft.state.NodeRole;
 import com.github.mstepan.jraft.topology.ClusterTopology;
 import com.github.mstepan.jraft.topology.HostPort;
 import com.github.mstepan.jraft.topology.ManagedChannelsPool;
@@ -64,12 +63,8 @@ public class HeartbeatTask implements Callable<Void> {
 
                                         // If RPC request or response contains term T > currentTerm:
                                         // set currentTerm = T, convert to follower (§5.1)
-                                        if (response.getNodeTerm()
-                                                > NodeGlobalState.INST.currentTerm()) {
-                                            NodeGlobalState.INST.setCurrentTerm(
-                                                    response.getNodeTerm());
-                                            NodeGlobalState.INST.setRole(NodeRole.FOLLOWER);
-                                        }
+                                        NodeGlobalState.INST.updateTermIfHigher(
+                                                response.getNodeTerm());
 
                                         return null;
                                     });

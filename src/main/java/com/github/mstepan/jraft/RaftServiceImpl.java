@@ -4,7 +4,6 @@ import com.github.mstepan.jraft.grpc.Raft;
 import com.github.mstepan.jraft.grpc.RaftServiceGrpc;
 import com.github.mstepan.jraft.state.LeaderInfo;
 import com.github.mstepan.jraft.state.NodeGlobalState;
-import com.github.mstepan.jraft.state.NodeRole;
 import com.github.mstepan.jraft.util.ScopedValueInterceptor;
 import io.grpc.stub.StreamObserver;
 import java.lang.invoke.MethodHandles;
@@ -23,10 +22,7 @@ public final class RaftServiceImpl extends RaftServiceGrpc.RaftServiceImplBase {
 
         // If RPC request or response contains term T > currentTerm:
         // set currentTerm = T, convert to follower (§5.1)
-        if (request.getNodeTerm() > NodeGlobalState.INST.currentTerm()) {
-            NodeGlobalState.INST.setCurrentTerm(request.getNodeTerm());
-            NodeGlobalState.INST.setRole(NodeRole.FOLLOWER);
-        }
+        NodeGlobalState.INST.updateTermIfHigher(request.getNodeTerm());
 
         // append entry from leader received
         LeaderInfo.INST.recordMessageFromLeader();

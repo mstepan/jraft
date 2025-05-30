@@ -44,7 +44,7 @@ public final class ClusterTopology {
         this.seedNodes = new ArrayList<>(seeds.size());
 
         for (String singleSeed : seeds) {
-            String[] parts = singleSeed.split(":");
+            String[] parts = singleSeed.split(":", 2);
             if (parts.length != 2) {
                 throw new IllegalArgumentException(
                         "Invalid seed host and port provided: " + singleSeed);

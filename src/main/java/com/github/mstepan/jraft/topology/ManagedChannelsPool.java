@@ -6,10 +6,13 @@ import io.grpc.ManagedChannelBuilder;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-public enum ManagedChannelsPool implements AutoCloseable {
-    INST;
+public final class ManagedChannelsPool implements AutoCloseable {
+
+    public static final ManagedChannelsPool INST = new ManagedChannelsPool();
 
     private final ConcurrentMap<HostPort, ManagedChannel> channelsCache = new ConcurrentHashMap<>();
+
+    private ManagedChannelsPool() {}
 
     public RaftServiceGrpc.RaftServiceBlockingStub newStubInstance(HostPort hostPort) {
 

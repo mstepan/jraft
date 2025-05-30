@@ -6,7 +6,6 @@ import com.github.mstepan.jraft.grpc.Raft.*;
 import com.github.mstepan.jraft.topology.ClusterTopology;
 import com.github.mstepan.jraft.topology.HostPort;
 import com.github.mstepan.jraft.topology.ManagedChannelsPool;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,9 +14,11 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressFBWarnings("ME_ENUM_FIELD_SETTER")
-public enum NodeGlobalState {
-    INST;
+public final class NodeGlobalState {
+
+    private NodeGlobalState() {}
+
+    public static final NodeGlobalState INST = new NodeGlobalState();
 
     private static final Logger LOGGER =
             LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -95,10 +96,7 @@ public enum NodeGlobalState {
 
                     // If RPC request or response contains term T > currentTerm:
                     // set currentTerm = T, convert to follower (§5.1)
-
-                    if (response.getNodeTerm() > NodeGlobalState.INST.currentTerm()) {
-                        NodeGlobalState.INST.setCurrentTerm(response.getNodeTerm());
-                        NodeGlobalState.INST.setRole(NodeRole.FOLLOWER);
+                    if (NodeGlobalState.INST.updateTermIfHigher(response.getNodeTerm())) {
                         break;
                     }
 
@@ -129,8 +127,26 @@ public enum NodeGlobalState {
         return currentTerm.get();
     }
 
-    public void setCurrentTerm(long newTerm) {
-        currentTerm.set(newTerm);
+    /**
+     * If RPC request or response contains term T > currentTerm: set currentTerm = T, convert to
+     * follower (§5.1)
+     *
+     * @param otherNodeTerm - the term value received from another cluster node
+     * @return true if the new term is greater than the current node's term; otherwise, false.
+     */
+    public boolean updateTermIfHigher(long otherNodeTerm) {
+        while (true) {
+            long curTermValue = currentTerm.get();
+
+            if (otherNodeTerm > curTermValue) {
+                if (currentTerm.compareAndSet(curTermValue, otherNodeTerm)) {
+                    setRole(NodeRole.FOLLOWER);
+                    return true;
+                }
+            } else {
+                return false;
+            }
+        }
     }
 
     public String votedFor() {
