@@ -107,11 +107,11 @@ public final class NodeGlobalState {
 
                     if (grantedVotesCnt >= cluster.majorityCount()
                             && NodeGlobalState.INST.isCandidate()) {
-                        LOGGER.debug("Vote majority reached");
-                        // If the Candidate receives votes from a majority of nodes, it becomes the
-                        // Leader.
 
-                        LOGGER.info("NEW LEADER elected, term {}", currentTerm.get());
+                        LOGGER.debug("Vote majority reached, term {}", currentTerm.get());
+
+                        // If the Candidate receives votes from a majority of nodes,
+                        // it becomes the Leader.
                         markAsLeader();
                         break;
                     }

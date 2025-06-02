@@ -3,7 +3,8 @@ package com.github.mstepan.jraft.state;
 import com.github.mstepan.jraft.util.ConcurrencyUtils;
 import java.util.concurrent.Callable;
 
-public class GlobalStatePrinter implements Callable<Void> {
+/** Print every node in-memory state to console. */
+public final class GlobalStatePrinter implements Callable<Void> {
 
     @Override
     public Void call() throws Exception {

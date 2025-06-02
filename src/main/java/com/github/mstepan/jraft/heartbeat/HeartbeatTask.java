@@ -19,7 +19,7 @@ import org.slf4j.MDC;
 public class HeartbeatTask implements Callable<Void> {
 
     // should be 2 or 3 times less than 'VoteTask.VOTE_MIN_DELAY_IN_MS' value
-    private static final long LEADER_PING_DELAY_IN_MS = VoteTask.VOTE_MIN_DELAY_IN_MS / 10;
+    private static final long LEADER_PING_DELAY_IN_MS = VoteTask.VOTE_MIN_DELAY_IN_MS / 3;
 
     private static final Logger LOGGER =
             LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
