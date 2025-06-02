@@ -17,9 +17,11 @@ public final class VoteTask implements Callable<Void> {
     private static final Logger LOGGER =
             LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-    // election timeout should be in range: 150–300 ms
-    public static final long VOTE_MIN_DELAY_IN_MS = 150L;
-    public static final long VOTE_MAX_DELAY_IN_MS = 300L;
+    // Recommended election timeout should be in range: 150–300 ms
+    public static final long VOTE_MIN_DELAY_IN_MS = 500L;
+    public static final long VOTE_MAX_DELAY_IN_MS = 800L;
+
+    public static final long INITIAL_DELAY_IN_MS = VOTE_MIN_DELAY_IN_MS * 5L;
 
     @Override
     public Void call() {
@@ -29,14 +31,13 @@ public final class VoteTask implements Callable<Void> {
         MDC.put("nodeId", cluster.curNodeId());
 
         // Initial delay to give some time for a cluster to boot
-        if (!ConcurrencyUtils.randomSleepInRangeNoException(1000L, 3_000)) {
-            LOGGER.debug("Vote tass was interrupted during initial sleep");
+        if (ConcurrencyUtils.sleepMs(INITIAL_DELAY_IN_MS)) {
             return null;
         }
 
         LOGGER.info("Voting thread started");
 
-        while (true) {
+        while (!Thread.currentThread().isInterrupted()) {
             try {
                 // sleep this thread until it's NOT A LEADER anymore
                 NodeGlobalState.INST.waitTillLeader();

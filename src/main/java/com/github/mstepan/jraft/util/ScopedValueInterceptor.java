@@ -7,7 +7,7 @@ import io.grpc.*;
  * Interceptor that propagates ClusterTopology object from ScopeValue to a gRPC contexts, so that
  * ClusterTopology object can be used inside server implementation.
  *
- * @param cluster
+ * @param cluster - cluster topology.
  */
 public record ScopedValueInterceptor(ClusterTopology cluster) implements ServerInterceptor {
 

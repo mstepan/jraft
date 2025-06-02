@@ -11,15 +11,15 @@ import org.slf4j.LoggerFactory;
 public final class ClusterTopology {
 
     private static final int MIN_PORT_VALUE = 0;
-    private static final int MAX_PORT_VALUE = 65535;
+    private static final int MAX_PORT_VALUE = 65_535;
 
     private static final Logger LOGGER =
             LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     private final String curNodeId;
-    private final String host;
-    private final int port;
+    private final HostPort nodeAddress;
     private final List<HostPort> seedNodes;
+    private final int clusterSize;
 
     public ClusterTopology(String curNodeId, String host, int port, List<String> seeds) {
         if (host == null) {
@@ -39,9 +39,8 @@ public final class ClusterTopology {
         } else {
             this.curNodeId = curNodeId;
         }
-        this.host = host;
-        this.port = port;
-        this.seedNodes = new ArrayList<>(seeds.size());
+        this.nodeAddress = new HostPort(host, port);
+        this.seedNodes = new ArrayList<>(seeds.size() + 1);
 
         for (String singleSeed : seeds) {
             String[] parts = singleSeed.split(":", 2);
@@ -49,11 +48,20 @@ public final class ClusterTopology {
                 throw new IllegalArgumentException(
                         "Invalid seed host and port provided: " + singleSeed);
             }
-            seedNodes.add(new HostPort(parts[0], Integer.parseInt(parts[1])));
+
+            HostPort otherNode = new HostPort(parts[0], Integer.parseInt(parts[1]));
+
+            if (otherNode.equals(nodeAddress)) {
+                // Don't track current node address as a peer
+                continue;
+            }
+
+            seedNodes.add(otherNode);
         }
 
-        LOGGER.info("Seed nodes registered: {}", seedNodes);
+        this.clusterSize = seedNodes.size() + 1;
         LOGGER.info("Current node ID: {}", curNodeId);
+        LOGGER.info("Seed nodes registered: {}", seedNodes);
     }
 
     public String curNodeId() {
@@ -61,18 +69,18 @@ public final class ClusterTopology {
     }
 
     public String host() {
-        return host;
+        return nodeAddress.host();
     }
 
     public int port() {
-        return port;
+        return nodeAddress.port();
     }
 
     public List<HostPort> seedNodes() {
         return Collections.unmodifiableList(seedNodes);
     }
 
-    public int clusterSize() {
-        return seedNodes.size() + 1;
+    public int majorityCount() {
+        return (clusterSize / 2) + 1;
     }
 }

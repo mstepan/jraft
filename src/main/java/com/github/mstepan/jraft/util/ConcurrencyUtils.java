@@ -16,7 +16,7 @@ public final class ConcurrencyUtils {
      * @return true if thread sleep completed successfully, otherwise if thread was interrupted
      *     return false
      */
-    public static boolean randomSleepInRangeNoException(long from, int to) {
+    public static boolean randomSleepInRangeNoException(long from, long to) {
         try {
             randomSleepInRange(from, to);
         } catch (InterruptedException interEx) {
@@ -44,14 +44,8 @@ public final class ConcurrencyUtils {
     }
 
     /**
-     * @param seconds - seconds to sleep
-     * @return true if thread was interrupted during sleep, otherwise false.
-     */
-    public static boolean sleepSec(long seconds) {
-        return sleep(seconds, TimeUnit.SECONDS);
-    }
-
-    /**
+     * Sleep current thread for specified milliseconds.
+     *
      * @param milliseconds - milliseconds to sleep
      * @return true if thread was interrupted during sleep, otherwise false.
      */

@@ -45,18 +45,22 @@ public final class NodeGlobalState {
      *
      * <p>(c) a period of time goes by with no winner.
      */
-    public synchronized void startElection() {
+    public void startElection() {
 
         ClusterTopology cluster = CLUSTER_TOPOLOGY_CONTEXT.get();
 
-        // 1. increments its current term
-        long newCurTerm = currentTerm.incrementAndGet();
+        long newCurTerm;
 
-        // 2. transitions to candidate state
-        setRole(NodeRole.CANDIDATE);
+        synchronized (this) {
+            // 1. increments its current term
+            newCurTerm = currentTerm.incrementAndGet();
 
-        // 3. votes for itself
-        votedFor = cluster.curNodeId();
+            // 2. transitions to candidate state
+            setRole(NodeRole.CANDIDATE);
+
+            // 3. votes for itself
+            votedFor = cluster.curNodeId();
+        }
 
         // 4. issues RequestVote RPCs in parallel to each of the other servers in the cluster
         List<StructuredTaskScope.Subtask<VoteResponse>> allRequests = new ArrayList<>();
@@ -76,6 +80,9 @@ public final class NodeGlobalState {
                                                     .build();
 
                                     VoteResponse response = stub.vote(request);
+
+                                    NodeGlobalState.INST.updateTermIfHigher(response.getNodeTerm());
+
                                     LOGGER.debug("Vote response: {}", response.getResult());
 
                                     return response;
@@ -94,20 +101,17 @@ public final class NodeGlobalState {
 
                     VoteResponse response = singleSubtask.get();
 
-                    // If RPC request or response contains term T > currentTerm:
-                    // set currentTerm = T, convert to follower (§5.1)
-                    if (NodeGlobalState.INST.updateTermIfHigher(response.getNodeTerm())) {
-                        break;
-                    }
-
                     if (response.getResult() == VoteResult.GRANTED) {
                         ++grantedVotesCnt;
                     }
 
-                    if (grantedVotesCnt >= cluster.clusterSize()) {
+                    if (grantedVotesCnt >= cluster.majorityCount()
+                            && NodeGlobalState.INST.isCandidate()) {
                         LOGGER.debug("Vote majority reached");
                         // If the Candidate receives votes from a majority of nodes, it becomes the
                         // Leader.
+
+                        LOGGER.info("NEW LEADER elected, term {}", currentTerm.get());
                         markAsLeader();
                         break;
                     }
@@ -117,6 +121,38 @@ public final class NodeGlobalState {
         } catch (InterruptedException interEx) {
             Thread.currentThread().interrupt();
         }
+    }
+
+    private synchronized boolean isCandidate() {
+        return role == NodeRole.CANDIDATE;
+    }
+
+    /*
+    1. Reply false if term < currentTerm (§5.1)
+    2. If votedFor is null or candidateId, and candidate’s log is at
+    least as up-to-date as receiver’s log, grant vote (§5.2, §5.4)
+     */
+    public synchronized boolean checkVoteGranted(
+            String candidateId, long candidateTerm, long candidateLogEntryIdx) {
+
+        if (candidateTerm < currentTerm.get()) {
+            return false;
+        }
+
+        if (candidateTerm > currentTerm.get()) {
+            currentTerm.set(candidateTerm);
+            votedFor = null;
+            setRole(NodeRole.FOLLOWER);
+        }
+
+        if ((votedFor == null || votedFor.equals(candidateId))
+                && candidateLogEntryIdx >= NodeGlobalState.INST.logEntryIndex()) {
+
+            votedFor = candidateId;
+            return true;
+        }
+
+        return false;
     }
 
     public synchronized boolean isLeader() {
@@ -134,19 +170,14 @@ public final class NodeGlobalState {
      * @param otherNodeTerm - the term value received from another cluster node
      * @return true if the new term is greater than the current node's term; otherwise, false.
      */
-    public boolean updateTermIfHigher(long otherNodeTerm) {
-        while (true) {
-            long curTermValue = currentTerm.get();
-
-            if (otherNodeTerm > curTermValue) {
-                if (currentTerm.compareAndSet(curTermValue, otherNodeTerm)) {
-                    setRole(NodeRole.FOLLOWER);
-                    return true;
-                }
-            } else {
-                return false;
-            }
+    public synchronized boolean updateTermIfHigher(long otherNodeTerm) {
+        if (otherNodeTerm > currentTerm.get()) {
+            currentTerm.set(otherNodeTerm);
+            setRole(NodeRole.FOLLOWER);
+            return true;
         }
+
+        return false;
     }
 
     public String votedFor() {
@@ -186,5 +217,9 @@ public final class NodeGlobalState {
         while (role == NodeRole.LEADER) {
             wait();
         }
+    }
+
+    public synchronized void printState() {
+        LOGGER.info("role: {}, currentTerm: {}, votedFor: {}", role, currentTerm.get(), votedFor);
     }
 }

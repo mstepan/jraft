@@ -22,17 +22,21 @@ public final class ManagedChannelsPool implements AutoCloseable {
             return RaftServiceGrpc.newBlockingStub(cachedChannel);
         }
 
-        // Use a synchronized block to prevent multiple stubs from being created at the same time
-        synchronized (ManagedChannelsPool.class) {
-            var managedChannel =
-                    ManagedChannelBuilder.forAddress(hostPort.host(), hostPort.port())
-                            .usePlaintext() // Required for plaintext (non-SSL) connections
-                            .build();
+        ManagedChannel channelToUse =
+                channelsCache.compute(
+                        hostPort,
+                        (keyNotUsed, managedChannelValue) -> {
+                            if (managedChannelValue == null) {
+                                return ManagedChannelBuilder.forAddress(
+                                                hostPort.host(), hostPort.port())
+                                        .usePlaintext() // Required for plaintext (non-SSL)
+                                        // connections
+                                        .build();
+                            }
+                            return managedChannelValue;
+                        });
 
-            channelsCache.put(hostPort, managedChannel);
-
-            return RaftServiceGrpc.newBlockingStub(managedChannel);
-        }
+        return RaftServiceGrpc.newBlockingStub(channelToUse);
     }
 
     @Override

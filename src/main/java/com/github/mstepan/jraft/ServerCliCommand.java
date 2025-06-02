@@ -91,6 +91,7 @@ public final class ServerCliCommand implements Callable<Integer> {
                 try (var scope = new StructuredTaskScope.ShutdownOnFailure()) {
                     scope.fork(new VoteTask());
                     scope.fork(new HeartbeatTask());
+                    //                    scope.fork(new GlobalStatePrinter());
 
                     server.awaitTermination();
                     LOGGER.info("gRPC server gracefully stopped");

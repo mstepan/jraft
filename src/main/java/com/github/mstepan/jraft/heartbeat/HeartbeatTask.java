@@ -19,7 +19,7 @@ import org.slf4j.MDC;
 public class HeartbeatTask implements Callable<Void> {
 
     // should be 2 or 3 times less than 'VoteTask.VOTE_MIN_DELAY_IN_MS' value
-    private static final long LEADER_PING_DELAY_IN_MS = VoteTask.VOTE_MIN_DELAY_IN_MS / 3;
+    private static final long LEADER_PING_DELAY_IN_MS = VoteTask.VOTE_MIN_DELAY_IN_MS / 10;
 
     private static final Logger LOGGER =
             LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -37,10 +37,12 @@ public class HeartbeatTask implements Callable<Void> {
 
         LOGGER.info("Heartbeat started");
 
-        while (true) {
+        while (!Thread.currentThread().isInterrupted()) {
             try {
                 if (NodeGlobalState.INST.isLeader()) {
                     // LOGGER.debug("I'm LEADER, sending heartbeat to other nodes...");
+
+                    final long startTime = System.nanoTime();
 
                     //  send EMPTY AppendEntry request from leader to each node
                     try (var scope = new StructuredTaskScope<Void>()) {
@@ -61,8 +63,6 @@ public class HeartbeatTask implements Callable<Void> {
                                         Raft.AppendEntryResponse response =
                                                 stub.appendEntry(request);
 
-                                        // If RPC request or response contains term T > currentTerm:
-                                        // set currentTerm = T, convert to follower (§5.1)
                                         NodeGlobalState.INST.updateTermIfHigher(
                                                 response.getNodeTerm());
 
@@ -71,6 +71,14 @@ public class HeartbeatTask implements Callable<Void> {
                         }
 
                         scope.join();
+                    }
+
+                    final long endTime = System.nanoTime();
+
+                    long heartbeatDelayInMs = (endTime - startTime) / 1_000_000L;
+
+                    if (heartbeatDelayInMs >= VoteTask.VOTE_MIN_DELAY_IN_MS) {
+                        LOGGER.warn("Heartbeat took: {} ms", heartbeatDelayInMs);
                     }
 
                     ConcurrencyUtils.sleepMs(LEADER_PING_DELAY_IN_MS);
