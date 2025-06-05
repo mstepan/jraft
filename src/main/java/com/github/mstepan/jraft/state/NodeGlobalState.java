@@ -10,7 +10,6 @@ import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,9 +28,9 @@ public final class NodeGlobalState {
     private volatile String votedFor;
 
     // latest term server has seen (initialized to 0 on first boot, increases monotonically)
-    private final AtomicLong currentTerm = new AtomicLong(0L);
+    private long currentTerm;
 
-    private final AtomicLong logEntryIdx = new AtomicLong(0L);
+    private long logEntryIdx;
 
     /**
      * To begin an election, a follower increments its current term and transitions to candidate
@@ -49,11 +48,14 @@ public final class NodeGlobalState {
 
         ClusterTopology cluster = CLUSTER_TOPOLOGY_CONTEXT.get();
 
-        long newCurTerm;
+        long curTermSnapshot;
+        long logEntryIdxSnapshot;
 
         synchronized (this) {
             // 1. increments its current term
-            newCurTerm = currentTerm.incrementAndGet();
+            ++currentTerm;
+            curTermSnapshot = currentTerm;
+            logEntryIdxSnapshot = logEntryIdx;
 
             // 2. transitions to candidate state
             setRole(NodeRole.CANDIDATE);
@@ -75,8 +77,8 @@ public final class NodeGlobalState {
                                     VoteRequest request =
                                             VoteRequest.newBuilder()
                                                     .setCandidateId(cluster.curNodeId())
-                                                    .setCandidateTerm(newCurTerm)
-                                                    .setLogEntryIdx(logEntryIdx.get())
+                                                    .setCandidateTerm(curTermSnapshot)
+                                                    .setLogEntryIdx(logEntryIdxSnapshot)
                                                     .build();
 
                                     VoteResponse response = stub.vote(request);
@@ -108,7 +110,7 @@ public final class NodeGlobalState {
                     if (grantedVotesCnt >= cluster.majorityCount()
                             && NodeGlobalState.INST.isCandidate()) {
 
-                        LOGGER.debug("Vote majority reached, term {}", currentTerm.get());
+                        LOGGER.debug("Vote majority reached, term {}", curTermSnapshot);
 
                         // If the Candidate receives votes from a majority of nodes,
                         // it becomes the Leader.
@@ -135,12 +137,12 @@ public final class NodeGlobalState {
     public synchronized boolean checkVoteGranted(
             String candidateId, long candidateTerm, long candidateLogEntryIdx) {
 
-        if (candidateTerm < currentTerm.get()) {
+        if (candidateTerm < currentTerm) {
             return false;
         }
 
-        if (candidateTerm > currentTerm.get()) {
-            currentTerm.set(candidateTerm);
+        if (candidateTerm > currentTerm) {
+            currentTerm = candidateTerm;
             votedFor = null;
             setRole(NodeRole.FOLLOWER);
         }
@@ -159,8 +161,8 @@ public final class NodeGlobalState {
         return role == NodeRole.LEADER;
     }
 
-    public long currentTerm() {
-        return currentTerm.get();
+    public synchronized long currentTerm() {
+        return currentTerm;
     }
 
     /**
@@ -171,8 +173,8 @@ public final class NodeGlobalState {
      * @return true if the new term is greater than the current node's term; otherwise, false.
      */
     public synchronized boolean updateTermIfHigher(long otherNodeTerm) {
-        if (otherNodeTerm > currentTerm.get()) {
-            currentTerm.set(otherNodeTerm);
+        if (otherNodeTerm > currentTerm) {
+            currentTerm = otherNodeTerm;
             setRole(NodeRole.FOLLOWER);
             return true;
         }
@@ -180,12 +182,8 @@ public final class NodeGlobalState {
         return false;
     }
 
-    public String votedFor() {
-        return votedFor;
-    }
-
-    public long logEntryIndex() {
-        return logEntryIdx.get();
+    public synchronized long logEntryIndex() {
+        return logEntryIdx;
     }
 
     public synchronized void setRoleIfDifferent(NodeRole newRole) {
@@ -220,6 +218,6 @@ public final class NodeGlobalState {
     }
 
     public synchronized void printState() {
-        LOGGER.info("role: {}, currentTerm: {}, votedFor: {}", role, currentTerm.get(), votedFor);
+        LOGGER.info("role: {}, currentTerm: {}, votedFor: {}", role, currentTerm, votedFor);
     }
 }
